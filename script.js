@@ -23,17 +23,17 @@ const colors = {
 const turret = {
   speed: 0, // movement speed (pixels per frame)
   rot_speed: 4, // rotation speed (degrees per frame)
-  spread: 8, // angle of spread (degrees)
-  fire_rate: 10, // delay between shots (frames)
-  hp: 10, // health points (damage required to destroy it)
+  spread: 10, // angle of spread (degrees)
+  fire_rate: 16, // delay between shots (frames)
+  hp: 12, // health points (damage required to destroy it)
 }
 
 // projectile settings
 const projectile = {
-  rad: 10, // radius (pixels)
-  speed: 6, // movement speed (pixels per frame)
+  rad: 12, // radius (pixels)
+  speed: 5, // movement speed (pixels per frame)
   strength: 1, // damage dealt upon collision
-  hp: 10, // health points (damage required to destroy it)
+  hp: 3, // health points (damage required to destroy it)
 }
 
 // hazard settings
@@ -42,13 +42,13 @@ const hazard = [
     rad: 14,           // radius (pixels)
     speed: 2,          // movement speed (pixels per frame)
     strength: 2,       // damage dealt upon collision
-    hp: 4,             // health points (damage required to destroy it)
+    hp: 3,             // health points (damage required to destroy it)
     color: colors.red, // color
     evasive: false     // evasive? (attempts to evade projectiles)
   },
   { // SCOUT ("quick" yellow hazard)
     rad: 10,
-    speed: 10,
+    speed: 8,
     strength: 2,
     hp: 2,
     color: colors.yellow,
@@ -64,17 +64,17 @@ const hazard = [
   },
   { // MOTHERSHIP ("large reproducing" purple hazard)
     rad: 30,
-    speed: 0.4,
+    speed: 0.6,
     strength: 6,
-    hp: 40,
+    hp: 30,
     color: colors.purple,
     evasive: false,
   },
   { // BOSS ("very large reproducing" indigo hazard)
     rad: 45,
     speed: 0.2,
-    strength: 10,
-    hp: 120,
+    strength: 12,
+    hp: 90,
     color: colors.indigo,
     evasive: false
   },
@@ -291,7 +291,7 @@ class Turret {
       // 1 in 3 chance of success
       // if success, roll again
       while (t < hazard.length - 1) {
-        if (floor(random(3)) == 0) t++
+        if (floor(random(4)) == 0) t++
         else break
       }
       hazards.push(new Hazard(x, y, s, v, hazard[t].rad, hazard[t].speed, hazard[t].strength, hazard[t].hp, hazard[t].color, hazard[t].evasive))
@@ -372,7 +372,7 @@ class Hazard {
     let min_d, target;
     turrets.forEach((t, j) => {
       let d = dist(t.pos.x, t.pos.y, this.pos.x, this.pos.y)
-      if (d <= 800 && (d < min_d || !min_d)) {
+      if (d <= 1000 && (d < min_d || !min_d)) {
         min_d = d
         target = j
       }
@@ -443,7 +443,7 @@ class Hazard {
     this.rot += (abs(this.vel.x) + abs(this.vel.y))
 
     // decrease radius as health points deplete ("shrinking" effect)
-    this.rad = (this.hp / this.max_hp * 0.25 + 0.75) * this.max_rad;
+    this.rad = (this.hp / this.max_hp * 0.3 + 0.7) * this.max_rad;
   }
   collide(i) {
     hazards.forEach((h, j) => {
@@ -502,8 +502,8 @@ class Hazard {
           let s = slope(p.pos.x, p.pos.y, this.pos.x, this.pos.y)
           
           // move hazard away from projectile
-          this.vel.x += cos(s)
-          this.vel.y += sin(s)
+          this.vel.x += cos(s) * this.speed / 8
+          this.vel.y += sin(s) * this.speed / 8
         }
       })
     }
@@ -591,7 +591,7 @@ class Projectile {
     this.rot += (abs(this.vel.x) + abs(this.vel.y))
 
     // decrase radius when damaged ("shrinking" effect)
-    this.rad = (this.hp / this.max_hp * 0.25 + 0.75) * this.max_rad;
+    this.rad = (this.hp / this.max_hp * 0.5 + 0.5) * this.max_rad;
   }
   collide() {
     hazards.forEach(h => {
@@ -626,7 +626,7 @@ class Projectile {
 
         // apply damage
         h.hp -= this.strength
-        this.hp -= h.strength
+        this.hp--
       }
     })
   }
