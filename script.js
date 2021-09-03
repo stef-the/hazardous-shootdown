@@ -52,7 +52,7 @@ const hazard = [
     strength: 2,
     hp: 2,
     color: colors.yellow,
-    evasive: true
+    evasive: true,
   },
   { // EVASIVE ("dodgy" orange hazard)
     rad: 18,
@@ -294,7 +294,7 @@ class Turret {
         if (floor(random(3)) == 0) t++
         else break
       }
-      hazards.push(new Hazard(x, y, s, v, hazard[t].rad, hazard[t].speed, hazard[t].strength, hazard[t].hp, hazard[t].color))
+      hazards.push(new Hazard(x, y, s, v, hazard[t].rad, hazard[t].speed, hazard[t].strength, hazard[t].hp, hazard[t].color, hazard[t].evasive))
       // reset timer to current difficulty value
       this.hazard_timer = difficulty
     }
