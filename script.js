@@ -57,15 +57,15 @@ const hazard = [
   },
   {
     color: colors.green,
-    rad: 20,
-    speed: 2,
-    strength: 3,
+    rad: 24,
+    speed: 1,
+    strength: 4,
     hp: 8,
     abilities: ['explosive'],
     spawn: { weight: 80, modifier: -0.2 },
   },
   {
-    color: colors.orange,
+    color: colors.blue,
     rad: 24,
     speed: 4,
     strength: 4,
@@ -151,7 +151,7 @@ class Turret {
     // set opacity
     colors.black.setAlpha(this.opacity);
     colors.gray.setAlpha(this.opacity);
-    colors.blue.setAlpha(this.opacity);
+    colors.orange.setAlpha(this.opacity);
     colors.red.setAlpha(this.hurt_opacity);
 
     push();
@@ -182,7 +182,7 @@ class Turret {
 
     // hexagonal body
     noStroke();
-    fill(colors.blue);
+    fill(colors.orange);
     hexagon(0, 0, 30 - 2.9);
 
     // hexagonal body hurt indicator
@@ -452,19 +452,22 @@ class Hazard {
 
     // death animation
     if (!this.live) {
-      if (this.abilities.explosive && this.max_rad >= 20 && this.aggro && this.opacity >= 255) {
-        for (let i = 0; i < 3; i++) {
+      if (this.abilities.explosive && this.max_hp >= 4 && this.aggro && this.opacity >= 255) {
+        for (let i = 0; i < 2; i++) {
           let angle = i * 360 / 3,
             pos = {
               x: this.pos.x + cos(angle) * (this.rad + 12),
               y: this.pos.y + sin(angle) * (this.rad + 12),
             },
             vel = {
-              x: cos(angle) * 8,
-              y: sin(angle) * 8,
+              x: cos(angle) * this.speed * 4,
+              y: sin(angle) * this.speed * 4,
             },
-            rad = this.max_rad / 2;
-          hazards.push(new Hazard(pos, angle, vel, this.color, rad, 6, 1, 3, ['explosive'], undefined, this.collision_id));
+            rad = this.max_rad * 0.7,
+            hp = this.max_hp / 2,
+            strength = this.strength / 2,
+            speed = this.speed * 2;
+          hazards.push(new Hazard(pos, angle, vel, this.color, rad, speed, strength, hp, ['explosive'], undefined, this.collision_id));
         }
       }
       this.scale += 0.04; // "popping" effect
@@ -601,7 +604,7 @@ class Projectile {
     hexagon(0, 0, this.rad);
 
     // hexagonal body
-    fill(colors.blue);
+    fill(colors.orange);
     noStroke();
     hexagon(0, 0, this.rad - 2.3);
 
