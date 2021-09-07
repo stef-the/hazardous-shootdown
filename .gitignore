@@ -105,5 +105,4 @@ dist
 
 package-lock.json
 package.json
-
-.bat
+start.bat
