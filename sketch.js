@@ -529,7 +529,7 @@ class Hazard {
             rad = this.max_rad * 2 / 3,
             hp = this.max_hp / 2,
             speed = this.speed * 2;
-          hazards.push(new Hazard(pos, angle, vel, this.collision_id, this.color, rad, speed, hp, []));
+          hazards.push(new Hazard(pos, angle, vel, hazards.length, this.color, rad, speed, hp, []));
         }
       }
 
