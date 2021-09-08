@@ -124,19 +124,19 @@ function setup() {
       spawn: { weight: 160, modifier: -0.6 },
     },
     {
-      color: colors.orange,
+      color: colors.green,
       rad: 20,
-      speed: 4,
-      hp: 12,
-      abilities: [],
+      speed: 2,
+      hp: 6,
+      abilities: ["explosive"],
       spawn: { weight: 80, modifier: -0.2 },
     },
     {
-      color: colors.green,
+      color: colors.orange,
       rad: 24,
-      speed: 1,
-      hp: 8,
-      abilities: ["explosive"],
+      speed: 4,
+      hp: 12,
+      abilities: [],
       spawn: { weight: 40, modifier: 0.2 },
     },
     {
@@ -145,12 +145,12 @@ function setup() {
       speed: 0.6,
       hp: 32,
       abilities: ["mothership"],
-      spawn: { weight: 4, modifier: 0.6 },
+      spawn: { weight: 5, modifier: 0.6 },
     },
     {
       color: colors.indigo,
       rad: 64,
-      speed: 0.4,
+      speed: 0.2,
       hp: 48,
       abilities: ["mothership"],
       spawn: { weight: 1, modifier: 1.0 },
@@ -523,7 +523,7 @@ class Hazard {
               x: cos(angle) * this.speed * 4,
               y: sin(angle) * this.speed * 4,
             },
-            rad = this.max_rad * 2 / 3,
+            rad = this.max_rad * 0.7,
             hp = this.max_hp / 2,
             speed = this.speed * 2;
           hazards.push(new Hazard(pos, angle, vel, this.color, rad, speed, hp, []));
@@ -565,7 +565,7 @@ class Hazard {
     this.rot += (abs(this.vel.x) + abs(this.vel.y));
 
     // decrease radius as health points deplete ("shrinking" effect)
-    this.rad = (this.hp / this.max_hp / 3 + 2 / 3) * this.max_rad;
+    this.rad = (this.hp / this.max_hp * 0.3 + 0.7) * this.max_rad;
   }
   collide(i) {
     hazards.forEach((h, j) => {
@@ -717,7 +717,7 @@ class Projectile {
     this.rot += (abs(this.vel.x) + abs(this.vel.y));
 
     // decrase radius when damaged ("shrinking" effect)
-    this.rad = (this.hp / this.max_hp / 3 + 2 / 3) * this.max_rad;
+    this.rad = (this.hp / this.max_hp * 0.3 + 0.7) * this.max_rad;
   }
   collide() {
     hazards.forEach(h => {
