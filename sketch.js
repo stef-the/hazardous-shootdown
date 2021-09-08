@@ -1,155 +1,220 @@
+/// <reference path="./p5.global-mode.d.ts"/>
+
 /** 
  * HAZARDOUS SHOOTDOWN
  * Copyright 2021, Kaden Campbell, All rights reserved.
+ * 
+ * TODO
+ * 1. rework difficulty system        [DONE]
+ * 2. rework opacity system           [DONE]
+ * 3. rework spawning algorithm       [DONE]
+ * 4. add crosshair                   [DONE]
+ * 5. add turret movement with WASD
+ * 6. add camera system
+ * 7. add map borders
  */
 
-new p5();
-
-// color palette
-const colors = {
-  blue: color(0, 180, 225),
-  black: color(85, 85, 85),
-  red: color(240, 80, 85),
-  green: color(0, 225, 110),
-  purple: color(191, 127, 245),
-  yellow: color(253, 231, 113),
-  orange: color(240, 140, 85),
-  gray: color(150, 150, 150),
-  indigo: color(118, 141, 252),
-};
-
-// turret settings
-const turret = {
-  speed: 0, // movement speed (pixels per frame)
-  rot_speed: 4, // rotation speed (degrees per frame)
-  spread: 8, // angle of spread (degrees)
-  fire_rate: 16, // delay between shots (frames)
-  hp: 16, // health points (damage required to destroy it)
-};
-
-// projectile settings
-const projectile = {
-  rad: 12, // radius (pixels)
-  speed: 6, // movement speed (pixels per frame)
-  strength: 1, // damage dealt upon collision
-  hp: 2, // health points (damage required to destroy it)
-};
-
-// hazard settings
-const hazard = [
-  {
-    color: colors.red, // color
-    rad: 16,           // radius
-    speed: 2,          // movement speed
-    strength: 2,       // strength (damage dealt on collision)
-    hp: 4,             // health points
-    abilities: [],     // abilities (options: 'evasive', 'mothership', or 'explosive')
-    spawn: {
-      weight: 400,     // spawn probability weight
-      modifier: -1,    // spawn probability weight modifier (exponential change in weight with respect to change in difficulty)
-    },
-  },
-  {
-    color: colors.yellow,
-    rad: 12,
-    speed: 6,
-    strength: 2,
-    hp: 2,
-    abilities: ['evasive'],
-    spawn: { weight: 160, modifier: -0.6 },
-  },
-  {
-    color: colors.orange,
-    rad: 20,
-    speed: 4,
-    strength: 4,
-    hp: 12,
-    abilities: [],
-    spawn: { weight: 80, modifier: -0.2 },
-  },
-  {
-    color: colors.green,
-    rad: 24,
-    speed: 1,
-    strength: 4,
-    hp: 8,
-    abilities: ['explosive'],
-    spawn: { weight: 40, modifier: 0.2 },
-  },
-  
-  {
-    color: colors.purple,
-    rad: 32,
-    speed: 0.6,
-    strength: 8,
-    hp: 32,
-    abilities: ['mothership'],
-    spawn: { weight: 4, modifier: 0.6 },
-  },
-  {
-    color: colors.indigo,
-    rad: 64,
-    speed: 0.4,
-    strength: 16,
-    hp: 48,
-    abilities: ['mothership'],
-    spawn: { weight: 1, modifier: 1.0 },
-  },
-];
-
-/** TODO
- * 1. add turret movement with WASD
- * 2. rework difficulty system
- * 3. add camera system
- * 4. add map borders
+/**
+ * DIFFICULTY
+ * increases by 0.01 per second
+ * 
+ * AS DIFFICULTY INCREASES:
+ * increased probability to spawn higher difficulty hazards
+ * decreased delay between hazard spawns
+ * (press left shift to show difficulty, spawn timer, and hazard spawning probabilities)
  */
+let difficulty = 1.00;
 
-/** SCORE
- * destroying hazards increases score (points)
+/**
+ * SCORE
+ * destroying hazards increases score
  * different hazard types reward different point values
  * 
- * TYPE        REWARD
- * soldier     4 points
- * scout       2 points
- * evasive     6 points
- * mothership  32 points
- * boss        64 points
- * drone       2 points (small hazards from mothership/boss)
+ * TYPE             REWARD
+ * red              4 points
+ * yellow           2 points
+ * green            8 points
+ * green (small)    4 points
+ * orange           12 points
+ * purple           32 points
+ * purple (small)   2 points
+ * indigo           64 points
+ * indigo (small)   2 points
  */
 let score = 0;
 
-/** DIFFICULTY
- * delay in frames between hazard spawns
- * destroying a hazard decreases this delay by 1 frame
- * minimum delay is 30 frames
- */
-let difficulty = 1.00
+let colors;
+let turret;
+let hazard;
+let projectile;
+let crosshair;
+
+function setup() {
+  // set color mode
+  colorMode(RGB, 1, 1, 1, 1);
+
+  // color settings
+  colors = {
+    blue: color(0, 0.7, 0.9),
+    black: color(0.3, 0.3, 0.3),
+    red: color(0.9, 0.3, 0.3),
+    green: color(0, 0.9, 0.4),
+    purple: color(0.8, 0.5, 1.0),
+    yellow: color(1.0, 0.9, 0.3),
+    orange: color(0.9, 0.5, 0.3),
+    gray: color(0.6, 0.6, 0.6),
+    indigo: color(0.5, 0.6, 1.0),
+  };
+
+  // turret settings
+  turret = {
+    speed: 0,     // movement speed    (pixels per frame)
+    rot_speed: 4, // rotation speed    (degrees per frame)
+    spread: 8,    // angle of spread   (degrees)
+    fire_rate: 4, // fire rate         (shots per second)
+    hp: 16,       // health points     (damage required to destroy it)
+  };
+
+  // projectile settings
+  projectile = {
+    rad: 12,     // radius           (pixels)
+    speed: 6,    // movement speed   (pixels per frame)
+    strength: 1, // strength         (damage dealt on collision)
+    hp: 2,       // health points    (damage required to destroy it)
+  };
+
+  // hazard settings
+  hazard = [
+    {
+      color: colors.red, // color
+      rad: 16,           // radius           (pixels)
+      speed: 2,          // movement speed   (pixels per frame)
+      strength: 2,       // strength         (damage dealt on collision)
+      hp: 4,             // health points    (damage required to destroy it)
+      abilities: [],     // abilities        (options: "evasive", "mothership", or "explosive")
+      /**
+       * SPAWNING PROBABILITY
+       * 
+       * WEIGHT
+       * probability of spawning the current hazard type is calculated by dividing the current weight by the total weight (of all hazard types)
+       * (probability = weight / total_weight)
+       * 
+       * MODIFIER
+       * as the difficulty increases, the weight changes based on the modifier
+       * modified weight is calculated by multiplying the base weight by the current difficulty raised to the power of the modifier
+       * (modified_weight = weight * pow(difficulty, modifier))
+       * 
+       * EXAMPLES (AT 2.00 DIFFICULTY)
+       * WEIGHT   MODIFIER   DIFFICULTY   =   MODIFIED WEIGHT
+       * 100      +1.0       2.00         =    200.000
+       * 100      -1.0       2.00         =     50.000
+       * 100      +5.0       2.00         =   3200.000
+       * 100      -5.0       2.00         =      3.125
+       * 100      +0.1       2.00         =    107.177
+       * 100      -0.1       2.00         =     93.303
+      */
+      spawn: {
+        weight: 400,
+        modifier: -1,
+      },
+    },
+    {
+      color: colors.yellow,
+      rad: 12,
+      speed: 6,
+      strength: 2,
+      hp: 2,
+      abilities: ["evasive"],
+      spawn: { weight: 160, modifier: -0.6 },
+    },
+    {
+      color: colors.orange,
+      rad: 20,
+      speed: 4,
+      strength: 4,
+      hp: 12,
+      abilities: [],
+      spawn: { weight: 80, modifier: -0.2 },
+    },
+    {
+      color: colors.green,
+      rad: 24,
+      speed: 1,
+      strength: 4,
+      hp: 8,
+      abilities: ["explosive"],
+      spawn: { weight: 40, modifier: 0.2 },
+    },
+    {
+      color: colors.purple,
+      rad: 32,
+      speed: 0.6,
+      strength: 8,
+      hp: 32,
+      abilities: ["mothership"],
+      spawn: { weight: 4, modifier: 0.6 },
+    },
+    {
+      color: colors.indigo,
+      rad: 64,
+      speed: 0.4,
+      strength: 16,
+      hp: 48,
+      abilities: ["mothership"],
+      spawn: { weight: 1, modifier: 1.0 },
+    },
+  ];
+
+  // create canvas
+  createCanvas(windowWidth, windowHeight);
+
+  // set angle mode
+  angleMode(DEGREES);
+  
+  // set frame rate
+  frameRate(60);
+
+  // set stroke weight
+  strokeWeight(5);
+
+  // set text alignment and font
+  textAlign(CENTER, CENTER);
+  textFont(loadFont("assets/Roboto-Black.ttf"));
+
+  // create player
+  turrets.push(new Turret({ x: windowWidth / 2, y: windowHeight / 2 }, ...Object.values(turret)));
+
+  // initialize crosshair
+  crosshair = { x: mouseX, y: mouseY, rad: 45 };
+}
 
 let hazards = [];
 let turrets = [];
 let projectiles = [];
-let clicks = [];
 
+// turret class
 class Turret {
   constructor(pos, speed, rot_speed, spread, fire_rate, hp) {
     this.pos = { x: pos.x, y: pos.y }; // position
-    this.vel = { x: 0, y: 0 };      // velocity
-    this.speed = speed;             // movement speed
-    this.rot_speed = rot_speed;     // rotation speed
-    this.spread = spread;           // spread
-    this.fire_rate = fire_rate;     // rate of projectile fire (delay in frames between each shot)
-    this.hp = hp;                   // health points
-    this.max_hp = hp;               // maximum health points
-    this.hp_display = hp;           // health point display (helps smoothly animate health bar)
-    this.recoil = 0;                // recoil (used to create a "knockback" effect when firing)
-    this.opacity = 0;               // opacity
-    this.hurt_opacity = 0;          // hurt indicator opacity (red "flash" when damaged)
-    this.hp_bar_opacity = 0;        // health bar opacity
-    this.scale = 0;                 // scale
-    this.rot = 270;                 // rotation
-    this.hazard_timer = 0;          // hazard spawning timer
-    this.projectile_timer = 0;      // projectile firing timer
-    this.live = true;               // is live? (is the turret still alive?)
+    this.vel = { x: 0, y: 0 };         // velocity
+    this.speed = speed;                // movement speed (pixels per frame)
+    this.rot_speed = rot_speed;        // rotation speed (degrees per frame)
+    this.spread = spread;              // spread (degrees)
+    this.fire_rate = fire_rate;        // fire rate (shots per second)
+    this.hp = hp;                      // health points
+    this.max_hp = hp;                  // maximum health points
+    this.hp_display = hp;              // health point display ("smoothly" animate health bar)
+    this.recoil = 0;                   // recoil ("knockback" effect when shooting)
+    this.scale = 0;                    // scale
+    this.rot = 270;                    // rotation
+    this.hazard_timer = 0;             // hazard spawning timer
+    this.projectile_timer = 0;         // projectile shooting timer
+    this.active = true;                // active?
+    this.opacity = {
+      master: 1,                       // master opacity
+      hp_bar: 0,                       // health bar opacity
+      hurt_indicator: 0,               // hurt indicator opacity (red "flash" when damaged)
+    };
   }
   draw() {
     push();
@@ -160,21 +225,21 @@ class Turret {
     rotate(-this.rot);
 
     // set health bar opacity
-    colors.black.setAlpha(this.hp_bar_opacity);
-    colors.green.setAlpha(this.hp_bar_opacity);
+    colors.black.setAlpha(this.opacity.master * this.opacity.hp_bar);
+    colors.green.setAlpha(this.opacity.master * this.opacity.hp_bar);
 
     // health bar
     noStroke();
     fill(colors.black);
-    rect(-29, 41, 58, 12);
+    rect(-27, 38, 54, 12);
     fill(colors.green);
-    rect(-25, 45, this.hp_display / this.max_hp * 50, 4);
+    rect(-23, 42, this.hp_display / this.max_hp * 46, 4);
 
     // set opacity
-    colors.black.setAlpha(this.opacity);
-    colors.gray.setAlpha(this.opacity);
-    colors.blue.setAlpha(this.opacity);
-    colors.red.setAlpha(this.hurt_opacity);
+    colors.black.setAlpha(this.opacity.master);
+    colors.gray.setAlpha(this.opacity.master);
+    colors.blue.setAlpha(this.opacity.master);
+    colors.red.setAlpha(this.opacity.master * this.opacity.hurt_indicator);
 
     // barrel outline
     rotate(this.rot);
@@ -186,11 +251,11 @@ class Turret {
     // barrel
     noStroke();
     fill(colors.gray);
-    rect(2, -8, 46, 16);
+    rect(2.5, -7.5, 46, 16);
 
-    // barrel hurt indicator  (red "flash" when damaged)
+    // barrel hurt indicator (red "flash" when damaged)
     fill(colors.red);
-    rect(-2, -12, 54, 24);
+    rect(-2.5, -12.5, 56, 26);
 
     // hexagonal body outline
     rotate(-this.rot);
@@ -201,11 +266,11 @@ class Turret {
     // hexagonal body
     noStroke();
     fill(colors.blue);
-    hexagon(0, 0, 30 - 2.9);
+    hexagon(0, 0, 30 - 2.6);
 
     // hexagonal body hurt indicator
     fill(colors.red);
-    hexagon(0, 0, 30 + 2.9);
+    hexagon(0, 0, 30 + 2.6);
 
     // score
     fill(colors.black);
@@ -215,37 +280,39 @@ class Turret {
     pop();
   }
   animate(i) {
-    // spawn animation
-    if (this.scale < 1) this.scale += 0.1;
-    if (this.opacity < 255 && this.live) this.opacity += 30;
-
-    // slowly regeneration health points over time
-    if (this.live) this.hp += 0.005;
+    // constrain opacity within 0 and 1
+    this.opacity.master = constrain(this.opacity.master, 0, 1);
+    this.opacity.hp_bar = constrain(this.opacity.hp_bar, 0, 1);
 
     // constrain health points between 0 and max health points
     this.hp = constrain(this.hp, 0, this.max_hp);
 
-    // "smoothly" update health point display to match health point value
-    this.hp_display += (this.hp - this.hp_display) / 4;
+    if (this.active) {
+      // spawn animation
+      if (this.scale < 1) this.scale += 0.1;
+      this.opacity.master += 0.1;
 
-    // mark turret not "live" once health points have depleted
-    if (this.hp <= 0) this.live = false;
+      // animate hurt indicator (red "flash" when damaged)
+      this.opacity.hurt_indicator -= 0.05;
 
-    // death animation
-    if (!this.live) {
+      // hide and show health bar
+      if (this.hp >= this.max_hp) this.opacity.hp_bar -= 0.1;
+      else this.opacity.hp_bar += 0.1;
+
+      // mark turret inactive once health points have depleted
+      if (this.hp <= 0) this.active = false;
+
+      // slowly regenerate health points over time
+      this.hp += 0.005;
+    } else {
+      // death animation
       this.scale += 0.05;
-      this.opacity -= 30;
-      this.hurt_opacity -= 30;
-      this.hp_bar_opacity -= 30;
-      if (this.opacity <= 0) turrets.splice(i, 1);
+      this.opacity.master -= 0.1;
+      if (this.opacity.master <= 0) turrets.splice(i, 1);
     }
 
-    // hide and show health bar
-    if (this.hp == this.max_hp) this.hp_bar_opacity -= 30;
-    else this.hp_bar_opacity += 30;
-
-    // constrain health bar opacity between 0 and 255
-    this.hp_bar_opacity = constrain(this.hp_bar_opacity, 0, 255);
+    // "smoothly" animate health bar
+    this.hp_display += (this.hp - this.hp_display) / 4;
 
     // rotate turret to mouse
     let a1 = atan2(crosshair.y - this.pos.y, crosshair.x - this.pos.x),
@@ -259,31 +326,41 @@ class Turret {
       this.rot += this.rot < 0 ? 360 : this.rot >= 360 ? -360 : 0;
     }
 
-    // hurt indicator animation (red "flash" when damaged)
-    this.hurt_opacity -= 10;
-
     // recoil animation
     if (this.recoil > 0) this.recoil--;
   }
   collide() {
     hazards.forEach(h => {
       let d = dist(h.pos.x, h.pos.y, this.pos.x, this.pos.y) // distance between hazard and turret
-      if (d <= 30 + h.rad + 8 && this.live && h.live) {
-        // apply damage
-        this.hp -= h.hp / h.max_hp * h.strength;
-        h.hp = 0;
+      if (d <= 30 + h.rad + 15 && this.active && h.active) {
+        let o = h.rad + 30 + 15 - d, // overlap between turret and hazard
 
-        // show hurt indicator
-        h.hurt_opacity = 255;
-        this.hurt_opacity = 255;
+          s = slope(this.pos.x, this.pos.y, h.pos.x, h.pos.y), // collision slope
+          v = sqrt(sq(h.vel.x) + sq(h.vel.y));                 // collision velocity
+
+        // redirect hazard after collision
+        h.vel.x = cos(s) * v;
+        h.vel.y = sin(s) * v;
+
+        // prevent turret and hazard from overlapping
+        h.pos.x += cos(s) * o;
+        h.pos.y += sin(s) * o;
+
+        // apply damage
+        this.hp -= h.strength / h.max_hp;
+        h.hp--;
+
+        // show hurt indicator (red "flash" when damaged)
+        h.opacity.hurt_indicator = 1;
+        this.opacity.hurt_indicator = 1;
       }
     });
   }
   spawnProjectiles() {
-    if (mouseIsPressed && this.live) {
-      // fire projectile when timer depletes
+    if (mouseIsPressed && this.active) {
+      // shoot projectile when timer depletes
       if (this.projectile_timer == 0) {
-        // apply recoil to turret
+        // apply recoil to turret ("knockback" effect when shooting)
         this.recoil = 5;
         let pos = {
           x: this.pos.x + cos(this.rot) * (15 + projectile.rad / 2), // x position
@@ -291,15 +368,15 @@ class Turret {
         },
           slope = this.rot + random(-this.spread / 2, this.spread / 2); // slope
         projectiles.push(new Projectile(pos, slope, projectile.rad, projectile.speed, projectile.strength, projectile.hp));
-        // reset timer to turret fire rate
-        this.projectile_timer = this.fire_rate;
+        // reset projectile timer to fire rate
+        this.projectile_timer = 60 / this.fire_rate;
       }
     }
-    // decrement timer
+    // decrement projectile timer
     if (this.projectile_timer > 0) this.projectile_timer--;
   }
   spawnHazards() {
-    // spawn hazard when timer depletes
+    // spawn hazard when hazard timer depletes
     if (this.hazard_timer <= 0) {
       let angle = random(360),
         pos = {
@@ -316,55 +393,56 @@ class Turret {
         total += modified_weight[i];
       });
 
-      // determine hazard type
+      // determine hazard type to spawn
       let r = random(total), type;
       hazard.forEach((h, i) => {
-        if (typeof type === 'undefined' && r < modified_weight[i]) type = i;
+        if (typeof type === "undefined" && r < modified_weight[i]) type = i;
         else r -= modified_weight[i];
       });
 
-      hazards.push(new Hazard(pos, s, vel, ...Object.values(hazard[type])));
-      // reset timer to current difficulty value
+      hazards.push(new Hazard(pos, s, vel, hazards.length, ...Object.values(hazard[type])));
+      // reset hazard timer based on current difficulty
       this.hazard_timer = 240 / sqrt(difficulty);
     }
-    // decrement timer
+    // decrement hazard timer
     this.hazard_timer--;
   }
 }
 
 class Hazard {
-  constructor(pos, slope, vel, color, rad, speed, strength, hp, abilities, spawn, collision_id) {
-    this.pos = { x: pos.x, y: pos.y };
-    this.vel = vel;
-    this.rad = rad;
-    this.max_rad = rad;
-    this.speed = speed;
-    this.strength = strength;
-    this.max_hp = hp;
-    this.color = color;
-    this.hp = hp;
-    this.hp_display = hp;
-    this.rot = 0;
-    this.live = true;
-    this.opacity = 0;
-    this.hurt_opacity = 0;
-    this.hp_bar_opacity = 0;
-    this.scale = 0;
-    this.time_to_live = rad * 144;
-    this.hazard_timer = 0;
-    this.slope = slope;
-    this.abilities = {
-      evasive: abilities.includes('evasive'),
-      explosive: abilities.includes('explosive'),
-      mothership: abilities.includes('mothership'),
+  constructor(pos, slope, vel, collision_id, color, rad, speed, strength, hp, abilities) {
+    this.pos = { x: pos.x, y: pos.y }; // position
+    this.vel = vel;                    // velocity
+    this.rad = rad;                    // radius (pixels)
+    this.max_rad = rad;                // max radius
+    this.speed = speed;                // movement speed (pixels per frame)
+    this.strength = strength;          // strength (damage dealt on collision)
+    this.hp = hp;                      // health points
+    this.max_hp = hp;                  // max health points
+    this.color = color;                // color
+    this.hp_display = hp;              // health point display
+    this.rot = 0;                      // rotation (degrees)
+    this.active = true;                // active?
+    this.scale = 0;                    // scale
+    this.time_to_live = rad * 144;     // time to live (frames)
+    this.hazard_timer = 0;             // hazard spawn timer (for hazards with "mothership" ability)
+    this.slope = slope;                // slope (direction of travel)
+    this.opacity = {
+      master: 1,                       // master opacity
+      hp_bar: 0,                       // health bar opacity
+      hurt_indicator: 0,               // hurt indicator opacity (red "flash" when damaged)
     };
-    this.collision_id = collision_id;
-    if (typeof this.collision_id === 'undefined') this.collision_id = hazards.length - 1;
+    this.abilities = {                 // abilities
+      evasive: abilities.includes("evasive"),
+      explosive: abilities.includes("explosive"),
+      mothership: abilities.includes("mothership"),
+    };
+    this.collision_id = collision_id;  // collision identifier (hazards with equal collision identifiers cannot collide with each other)
   }
   draw() {
     // set opacity
-    colors.black.setAlpha(this.opacity);
-    this.color.setAlpha(this.opacity);
+    colors.black.setAlpha(this.opacity.master);
+    this.color.setAlpha(this.opacity.master);
 
     push();
     translate(this.pos.x, this.pos.y);
@@ -383,7 +461,7 @@ class Hazard {
     burst(0, 0, this.rad - 3.6);
 
     // set hurt indicator opacity
-    colors.red.setAlpha(this.hurt_opacity);
+    colors.red.setAlpha(this.opacity.master * this.opacity.hurt_indicator);
 
     // hurt indicator (red "flash" when damaged)
     fill(colors.red);
@@ -392,29 +470,29 @@ class Hazard {
     noStroke();
 
     // set health bar opacity
-    colors.black.setAlpha(this.hp_bar_opacity);
-    colors.green.setAlpha(this.hp_bar_opacity);
+    colors.black.setAlpha(this.opacity.master * this.opacity.hp_bar);
+    colors.green.setAlpha(this.opacity.master * this.opacity.hp_bar);
 
     // health bar
     fill(colors.black);
-    rect(-this.rad - 4, this.rad * 1.2 + 8, this.rad * 2 + 8, 12);
+    rect(-this.rad - 2, this.rad * 1.2 + 8, this.rad * 2 + 4, 12);
     fill(colors.green);
-    rect(-this.rad, this.rad * 1.2 + 12, this.hp_display / this.max_hp * (this.rad * 2), 4);
-    pop()
+    rect(-this.rad + 2, this.rad * 1.2 + 12, this.hp_display / this.max_hp * (this.rad * 2 - 4), 4);
+    pop();
   }
   animate(i) {
     // find nearest turret within range (to attack)
-    let min_d, target;
+    let min_distance, target;
     turrets.forEach((t, j) => {
-      let d = dist(t.pos.x, t.pos.y, this.pos.x, this.pos.y);
-      if (d <= 1000 && (d < min_d || !min_d)) {
-        min_d = d;
+      let distance = dist(t.pos.x, t.pos.y, this.pos.x, this.pos.y);
+      if (distance <= 1000 && (distance < min_distance || !min_distance)) {
+        min_distance = distance;
         target = j;
       }
     });
 
     // if a turret within range exists, become "aggro" (aggravated)
-    this.aggro = typeof target !== 'undefined';
+    this.aggro = typeof target !== "undefined";
 
     if (this.aggro) {
       // attack nearest turret within range
@@ -422,41 +500,32 @@ class Hazard {
       this.vel.x += (cos(this.slope) * this.speed - this.vel.x) / 32;
       this.vel.y += (sin(this.slope) * this.speed - this.vel.y) / 32;
 
-      // decrement time to live
+      // decrement time to active
       this.time_to_live--;
     }
     else {
-      // otherwise drift around idly
+      // drift around idly
       this.vel.x += (cos(this.slope) * this.speed / 4 - this.vel.x) / 64;
       this.vel.y += (sin(this.slope) * this.speed / 4 - this.vel.y) / 64;
 
-      // rapidly decremenet time to live
+      // rapidly decrement time to active
       this.time_to_live -= 30;
     }
 
-    // spawn animation
-    if (this.scale < 1) this.scale += 0.1;
-    if (this.opacity < 255 && this.live) this.opacity += 30;
+    if (this.active) {
+      // spawn animation
+      if (this.scale < 1) this.scale += 0.1;
+      this.opacity.master += 0.1;
 
-    // hide and show health bar
-    if (this.hp < this.max_hp && this.live) this.hp_bar_opacity += 60;
-    if (this.hp == this.max_hp && this.live) this.hp_bar_opacity -= 60;
+      // hide and show health bar
+      if (this.hp == this.max_hp) this.opacity.hp_bar -= 0.1;
+      else this.opacity.hp_bar += 0.1;
 
-    // constrain health bar opacity between 0 and 255
-    this.hp_bar_opacity = constrain(this.hp_bar_opacity, 0, 255);
-
-    // constrain health points within 0 and max health points
-    this.hp = constrain(this.hp, 0, this.max_hp);
-
-    // "smoothly" update health point display to match health point value
-    this.hp_display += (this.hp - this.hp_display) / 4;
-
-    // animate hurt indicator (red "flash" when damaged)
-    this.hurt_opacity -= 10;
-
-    // death animation
-    if (!this.live) {
-      if (this.abilities.explosive && this.aggro && this.opacity >= 255) {
+      // animate hurt indicator (red "flash" when damaged)
+      this.opacity.hurt_indicator -= 0.05;
+    } else {
+      // explosive ability
+      if (this.abilities.explosive && this.aggro && this.opacity.master >= 1) {
         for (let i = 0; i < 3; i++) {
           let angle = random(360) + i * 120,
             pos = {
@@ -464,21 +533,22 @@ class Hazard {
               y: this.pos.y + sin(angle) * (this.rad + 12),
             },
             vel = {
-              x: cos(angle) * this.speed * 8,
-              y: sin(angle) * this.speed * 8,
+              x: cos(angle) * this.speed * 5,
+              y: sin(angle) * this.speed * 5,
             },
             rad = this.max_rad * 2 / 3,
             hp = this.max_hp / 2,
             strength = this.strength / 2,
             speed = this.speed * 2;
-          hazards.push(new Hazard(pos, angle, vel, this.color, rad, speed, strength, hp, [], undefined, this.collision_id));
+          hazards.push(new Hazard(pos, angle, vel, this.collision_id, this.color, rad, speed, strength, hp, []));
         }
       }
-      this.scale += 0.04; // "popping" effect
-      this.hurt_opacity -= 20;
-      this.opacity -= 20;
-      this.hp_bar_opacity -= 20;
-      if (this.opacity <= 0) {
+
+      // death animation
+      this.scale += 0.05; // "popping" effect
+      this.opacity.master -= 0.1;
+
+      if (this.opacity.master <= 0) {
         // increase score
         if (turrets.length) score += floor(this.max_hp * difficulty);
         // delete hazard from array
@@ -486,9 +556,19 @@ class Hazard {
       }
     }
 
-    // mark hazard not "live" once health points or time to live has depleted
+    // constrain opacity between 0 and 1
+    this.opacity.hp_bar = constrain(this.opacity.hp_bar, 0, 1);
+    this.opacity.master = constrain(this.opacity.master, 0, 1);
+
+    // constrain health points within 0 and max health points
+    this.hp = constrain(this.hp, 0, this.max_hp);
+
+    // "smoothly" update health point display to match health point value
+    this.hp_display += (this.hp - this.hp_display) / 4;
+
+    // mark hazard inactive once health points or time to active has depleted
     if (this.hp <= 0 || this.time_to_live <= 0) {
-      this.live = false;
+      this.active = false;
     }
 
     // update position based on velocity
@@ -504,17 +584,17 @@ class Hazard {
   collide(i) {
     hazards.forEach((h, j) => {
       let d = dist(h.pos.x, h.pos.y, this.pos.x, this.pos.y) // distance between hazards
-      if (d <= h.rad + this.rad + 8 && this.live && h.live && i !== j && this.collision_id !== h.collision_id) {
-        let o = h.rad + this.rad + 8 - d, // overlap between projectile and hazard
+      if (d <= h.rad + this.rad + 15 && this.active && h.active && i !== j && this.collision_id !== h.collision_id) {
+        let o = h.rad + this.rad + 15 - d, // overlap between hazards
 
-          s1 = slope(this.pos.x, this.pos.y, h.pos.x, h.pos.y), // slope of projectile
-          s2 = slope(h.pos.x, h.pos.y, this.pos.x, this.pos.y), // slope of hazard
+          s1 = slope(this.pos.x, this.pos.y, h.pos.x, h.pos.y), // slope of other hazard
+          s2 = slope(h.pos.x, h.pos.y, this.pos.x, this.pos.y), // slope of this hazard
 
-          r1 = pow(this.rad, 3) / (pow(this.rad, 3) + pow(h.rad, 3)), // size ratio of projectile
-          r2 = pow(h.rad, 3) / (pow(this.rad, 3) + pow(h.rad, 3)),    // size ratio of hazard
+          r1 = pow(this.rad, 3) / (pow(this.rad, 3) + pow(h.rad, 3)), // size ratio of other hazard
+          r2 = pow(h.rad, 3) / (pow(this.rad, 3) + pow(h.rad, 3)),    // size ratio of this hazard
 
-          v1 = sqrt(sq(this.vel.x) + sq(this.vel.y)), // velocity of projectile
-          v2 = sqrt(sq(h.vel.x) + sq(h.vel.y));       // velocity of hazard
+          v1 = sqrt(sq(this.vel.x) + sq(this.vel.y)), // velocity of other hazard
+          v2 = sqrt(sq(h.vel.x) + sq(h.vel.y));       // velocity of this hazard
 
         // redirect after collision
         h.vel.x = cos(s1) * (v1 + v2) * r1;
@@ -522,7 +602,7 @@ class Hazard {
         this.vel.x = cos(s2) * (v1 + v2) * r2;
         this.vel.y = sin(s2) * (v1 + v2) * r2;
 
-        // prevent projectile and hazard from overlapping
+        // prevent hazards from overlapping
         h.pos.x += cos(s1) * o * r1;
         h.pos.y += sin(s1) * o * r1;
         this.pos.x += cos(s2) * o * r2;
@@ -545,7 +625,7 @@ class Hazard {
             x: cos(angle) * 8,
             y: sin(angle) * 8,
           };
-        hazards.push(new Hazard(pos, angle, vel, this.color, rad, 6, strength, hp, [], undefined, this.collision_id));
+        hazards.push(new Hazard(pos, angle, vel, this.collision_id, this.color, rad, 6, strength, hp, []));
         // reset hazard spawn timer
         this.hazard_timer = floor(2880 / this.max_rad);
       }
@@ -557,7 +637,7 @@ class Hazard {
       projectiles.forEach(p => {
         let d = dist(p.pos.x, p.pos.y, this.pos.x, this.pos.y); // distance between projectile and hazard
         // check if projectile is near hazard
-        if (d <= (p.rad + this.rad + 10) * 2 && this.live && p.live) {
+        if (d <= (p.rad + this.rad + 15) * 2 && this.active && p.active) {
           // slope from projectile to hazard
           let s = slope(p.pos.x, p.pos.y, this.pos.x, this.pos.y);
 
@@ -580,22 +660,24 @@ class Projectile {
     this.max_rad = rad;        // maximum radius
     this.rad = rad;            // radius
     this.speed = speed;        // movement speed 
-    this.strength = strength;  // strength (damage dealt upon collision)
+    this.strength = strength;  // strength (damage dealt on collision)
     this.max_hp = hp;          // maximum health points
     this.hp = hp;              // health points
     this.slope = slope;        // slope (direction of travel)
     this.rot = 0;              // rotation
-    this.live = true;          // is live? (is the projectile still alive?)
-    this.opacity = 0;          // opacity
-    this.hurt_opacity = 0;     // hurt indicator opacity (red "flash" when damaged)
-    this.time_to_live = 300;   // time to live
+    this.active = true;          // is active? (is the projectile still aactive?)
+    this.opacity = {
+      master: 1,       // master opacity
+      hurt_indicator: 0, // hurt indicator opacity
+    };
+    this.time_to_live = 300;   // time to active
     this.scale = 0;            // scale
   }
   draw() {
     // set opacity
-    colors.black.setAlpha(this.opacity);
-    colors.blue.setAlpha(this.opacity);
-    colors.red.setAlpha(this.hurt_opacity);
+    colors.black.setAlpha(this.opacity.master);
+    colors.blue.setAlpha(this.opacity.master);
+    colors.red.setAlpha(this.opacity.master * this.opacity.hurt_indicator);
 
     push();
     translate(this.pos.x, this.pos.y);
@@ -618,27 +700,30 @@ class Projectile {
     pop();
   }
   animate(i) {
-    // spawn animation
-    if (this.scale < 1) this.scale += 0.1;
-    if (this.opacity < 255 && this.live) this.opacity += 30;
+    if (this.active) {
+      // spawn animation
+      if (this.scale < 1) this.scale += 0.1;
+      this.opacity.master += 0.1;
 
-    // hurt indicator animation (red "flash" when damaged)
-    this.hurt_opacity -= 10;
+      // animate hurt indicator (red "flash" when damaged)
+      this.opacity.hurt_indicator -= 0.05;
 
-    // decrement time to live 
-    this.time_to_live--;
+      // decrement time to active 
+      this.time_to_live--;
 
-    // mark projectile as not live once health or time to live has been depleted
-    if (this.time_to_live <= 0 || this.hp <= 0) this.live = false;
-
-    // death animation
-    if (!this.live) {
+      // mark projectile as inactive once health or time to active has been depleted
+      if (this.time_to_live <= 0 || this.hp <= 0) this.active = false;
+    } else {
+      // death animation
       this.scale += 0.05;
-      this.opacity -= 30;
-      this.hurt_opacity -= 30;
+      this.opacity.master -= 0.1;
+
       // delete projectile
-      if (this.opacity <= 0) projectiles.splice(i, 1);
+      if (this.opacity.master <= 0) projectiles.splice(i, 1);
     }
+
+    // constrain opacity within 0 and 1
+    this.opacity.master = constrain(this.opacity.master, 0, 1);
 
     // update position based on velocity
     this.pos.x += this.vel.x;
@@ -653,8 +738,8 @@ class Projectile {
   collide() {
     hazards.forEach(h => {
       let d = dist(h.pos.x, h.pos.y, this.pos.x, this.pos.y); // distance between projectile and hazard
-      if (d <= h.rad + this.rad + 8 && this.live && h.live) {
-        let o = h.rad + this.rad + 8 - d, // overlap between projectile and hazard
+      if (d <= h.rad + this.rad + 15 && this.active && h.active) {
+        let o = h.rad + this.rad + 15 - d, // overlap between projectile and hazard
 
           s1 = slope(this.pos.x, this.pos.y, h.pos.x, h.pos.y), // slope of projectile
           s2 = slope(h.pos.x, h.pos.y, this.pos.x, this.pos.y), // slope of hazard
@@ -678,8 +763,8 @@ class Projectile {
         this.pos.y += sin(s2) * o * r2;
 
         // show hurt indicator (red "flash" when damaged)
-        h.hurt_opacity = 255;
-        this.hurt_opacity = 255;
+        h.opacity.hurt_indicator = 1;
+        this.opacity.hurt_indicator = 1;
 
         // apply damage
         h.hp -= this.strength;
@@ -689,92 +774,8 @@ class Projectile {
   }
 }
 
-// clicking animation
-class Click {
-  constructor(pos) {
-    this.pos = { x: pos.x, y: pos.y };
-    this.rad = 20;
-    this.lerp = 0;
-    this.stroke_weight = 15;
-  }
-  draw() {
-    push();
-    noFill();
-    strokeWeight(this.stroke_weight);
-    stroke(lerpColor(color(220), color(255), this.lerp));
-    ellipse(this.pos.x, this.pos.y, this.rad * 2);
-    pop();
-  }
-  animate(i) {
-    this.rad++;
-    this.stroke_weight -= 0.5;
-    this.lerp += 1 / 30;
-    if (this.lerp >= 1) clicks.splice(i, 1);
-  }
-}
-
-
-function hexagon(x, y, rad) {
-  beginShape();
-  for (let i = 0; i <= 6; i++) {
-    vertex(x + sin(i * 60) * rad, y + cos(i * 60) * rad);
-  }
-  endShape();
-}
-
-function burst(x, y, rad) {
-  beginShape();
-  for (let i = 0; i <= 10; i++) {
-    vertex(x + sin(i * 45) * rad * 1.2, y + cos(i * 45) * rad * 1.2);
-    vertex(x + sin(22.5 + i * 45) * rad * 0.8, y + cos(22.5 + i * 45) * rad * 0.8);
-  }
-  endShape();
-}
-
-function slope(x, y, x2, y2) {
-  return atan2(y2 - y, x2 - x);
-}
-
-// load font
-let roboto_bold;
-function preload() {
-  roboto_bold = loadFont('assets/Roboto-Black.ttf');
-}
-
-let mouse_over;
-function setup() {
-  let canvas = createCanvas(windowWidth, windowHeight);
-  canvas.mouseOver(function () { mouse_over = true; });
-  canvas.mouseOut(function () { mouse_over = false; });
-  angleMode(DEGREES);
-  frameRate(60);
-  strokeWeight(5);
-  textAlign(CENTER, CENTER);
-  textFont(roboto_bold);
-}
-
-function windowResized() {
-  // recenter each turret
-  turrets.forEach(t => {
-    t.pos.x = windowWidth / 2;
-    t.pos.y = windowHeight / 2;
-  });
-  // resize canvas
-  resizeCanvas(windowWidth, windowHeight);
-}
-
-turrets.push(new Turret({ x: windowWidth / 2, y: windowHeight / 2 }, ...Object.values(turret)));
-
-let crosshair = { x: mouseX, y: mouseY, rad: 45, scale: 1 };
-
 function draw() {
-  // set canvas background color
-  background(255);
-
-  clicks.forEach((c, i) => {
-    c.draw();
-    c.animate(i);
-  });
+  background(1);
 
   projectiles.forEach((p, i) => {
     p.draw();
@@ -806,8 +807,8 @@ function draw() {
   // show score
   if (!turrets.length) {
     push();
-    colors.black.setAlpha(255);
-    colors.red.setAlpha(255);
+    colors.black.setAlpha(1);
+    colors.red.setAlpha(1);
     strokeWeight(10);
     textSize(100);
     stroke(colors.black);
@@ -819,8 +820,8 @@ function draw() {
   // debug info (press left shift to show)
   if (keyIsDown(16)) {
     push();
-    colors.black.setAlpha(255);
-    colors.red.setAlpha(255);
+    colors.black.setAlpha(1);
+    colors.red.setAlpha(1);
     fill(colors.black);
     textAlign(LEFT, TOP);
     textSize(15);
@@ -838,7 +839,7 @@ function draw() {
 
     let x = 0;
     hazard.forEach((h, i) => {
-      h.color.setAlpha(255);
+      h.color.setAlpha(1);
       noStroke();
       fill(h.color);
       rect(x, 0, modified_weight[i] / total_weight * windowWidth, 10);
@@ -847,7 +848,7 @@ function draw() {
     pop();
   }
 
-  // corsshair
+  // crosshair
   cursor(ARROW);
   if (focused) {
     cursor("NONE");
@@ -855,9 +856,8 @@ function draw() {
     translate(crosshair.x, crosshair.y);
     scale(crosshair.scale);
     strokeCap(PROJECT);
-    colors.red.setAlpha(255);
-    colors.black.setAlpha(255);
-    // rotate(45);
+    colors.red.setAlpha(1);
+    colors.black.setAlpha(1);
     for (let i = 0; i < 2; i++) {
       stroke(lerpColor(colors.black, colors.red, i));
       strokeWeight(9 - 6 * i);
@@ -872,8 +872,41 @@ function draw() {
     pop();
   }
 
+  // move crosshair to cursor
   crosshair.x += (mouseX - crosshair.x) / 4;
   crosshair.y += (mouseY - crosshair.y) / 4;
 
-  crosshair.rad += ((mouseIsPressed ? 40 : 50) - crosshair.rad) / 4;
+  // "shrink" crosshair when mouse pressed
+  crosshair.rad += ((mouseIsPressed ? 40 : 60) - crosshair.rad) / 4;
+}
+
+function windowResized() {
+  // recenter turrets
+  turrets.forEach(t => {
+    t.pos.x = windowWidth / 2;
+    t.pos.y = windowHeight / 2;
+  });
+  // resize canvas
+  resizeCanvas(windowWidth, windowHeight);
+}
+
+function hexagon(x, y, rad) {
+  beginShape();
+  for (let i = 0; i <= 6; i++) {
+    vertex(x + sin(i * 60) * rad, y + cos(i * 60) * rad);
+  }
+  endShape();
+}
+
+function burst(x, y, rad) {
+  beginShape();
+  for (let i = 0; i <= 10; i++) {
+    vertex(x + sin(i * 45) * rad * 1.2, y + cos(i * 45) * rad * 1.2);
+    vertex(x + sin(22.5 + i * 45) * rad * 0.8, y + cos(22.5 + i * 45) * rad * 0.8);
+  }
+  endShape();
+}
+
+function slope(x, y, x2, y2) {
+  return atan2(y2 - y, x2 - x);
 }
