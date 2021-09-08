@@ -294,7 +294,7 @@ class Turret {
       if (this.hp <= 0) this.active = false;
 
       // slowly regenerate health points over time
-      this.hp += 0.005;
+      this.hp += 1 / 60;
     } else {
       // death animation
       this.scale += 0.05;
