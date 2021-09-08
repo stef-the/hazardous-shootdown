@@ -1,1 +1,3 @@
-console.log('Hello World')
+$.getscript("sketch.js",function(){
+  sketch_game();
+});
