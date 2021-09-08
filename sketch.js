@@ -145,7 +145,7 @@ function setup() {
       speed: 0.6,
       hp: 32,
       abilities: ["mothership"],
-      spawn: { weight: 4000, modifier: 0.6 },
+      spawn: { weight: 4, modifier: 0.6 },
     },
     {
       color: colors.indigo,
