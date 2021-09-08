@@ -3,8 +3,6 @@
  * Copyright 2021, Kaden Campbell, All rights reserved.
  */
 
-//
-
 new p5();
 
 // color palette
@@ -40,15 +38,15 @@ const projectile = {
 // hazard settings
 const hazard = [
   {
-    color: colors.red,
-    rad: 16,
-    speed: 2,
-    strength: 2,
-    hp: 4,
-    abilities: [],
+    color: colors.red, // color
+    rad: 16,           // radius
+    speed: 2,          // movement speed
+    strength: 2,       // strength (damage dealt on collision)
+    hp: 4,             // health points
+    abilities: [],     // abilities (options: 'evasive', 'mothership', or 'explosive')
     spawn: {
-      weight: 400,
-      modifier: -1,
+      weight: 400,     // spawn probability weight
+      modifier: -1,    // spawn probability weight modifier (exponential change in weight with respect to change in difficulty)
     },
   },
   {
@@ -158,7 +156,7 @@ class Turret {
     translate(this.pos.x, this.pos.y);
     scale(this.scale);
     rotate(this.rot);
-    translate(-this.recoil - 10, 0);
+    translate(-10, 0);
     rotate(-this.rot);
 
     // set health bar opacity
@@ -168,9 +166,9 @@ class Turret {
     // health bar
     noStroke();
     fill(colors.black);
-    rect(-29, 41, 58, 13);
+    rect(-29, 41, 58, 12);
     fill(colors.green);
-    rect(-25, 45, this.hp_display / this.max_hp * 50, 5);
+    rect(-25, 45, this.hp_display / this.max_hp * 50, 4);
 
     // set opacity
     colors.black.setAlpha(this.opacity);
@@ -180,6 +178,7 @@ class Turret {
 
     // barrel outline
     rotate(this.rot);
+    translate(-this.recoil, 0);
     stroke(colors.black);
     noFill();
     rect(0, -10, 50, 20);
@@ -398,9 +397,9 @@ class Hazard {
 
     // health bar
     fill(colors.black);
-    rect(-this.rad - 3, this.rad * 1.2 + 5, this.rad * 2 + 6, 9, 4.5);
+    rect(-this.rad - 4, this.rad * 1.2 + 8, this.rad * 2 + 8, 12);
     fill(colors.green);
-    rect(-this.rad, this.rad * 1.2 + 8, this.hp_display / this.max_hp * (this.rad * 2), 3, 3);
+    rect(-this.rad, this.rad * 1.2 + 12, this.hp_display / this.max_hp * (this.rad * 2), 4);
     pop()
   }
   animate(i) {
