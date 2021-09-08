@@ -149,7 +149,7 @@ function setup() {
     },
     {
       color: colors.indigo,
-      rad: 64,
+      rad: 48,
       speed: 0.2,
       hp: 48,
       abilities: ["mothership"],
@@ -612,7 +612,7 @@ class Hazard {
           };
         hazards.push(new Hazard(pos, angle, vel, this.color, rad, 6, hp, []));
         // reset hazard spawn timer
-        this.hazard_timer = floor(2880 / this.max_rad);
+        this.hazard_timer = floor(1920 / this.max_rad);
       }
       else if (this.hazard_timer > 0) this.hazard_timer--; // decrement hazard spawn timer
     }
