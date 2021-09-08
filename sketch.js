@@ -533,8 +533,8 @@ class Hazard {
               y: this.pos.y + sin(angle) * (this.rad + 12),
             },
             vel = {
-              x: cos(angle) * this.speed * 5,
-              y: sin(angle) * this.speed * 5,
+              x: cos(angle) * this.speed * 4,
+              y: sin(angle) * this.speed * 4,
             },
             rad = this.max_rad * 2 / 3,
             hp = this.max_hp / 2,
@@ -867,7 +867,7 @@ function draw() {
         rotate(90);
         line(0, crosshair.rad * 0.3, 0, crosshair.rad * 0.7);
       }
-      ellipse(0, 0, crosshair.rad);
+      rect(-crosshair.rad / 2, -crosshair.rad / 2, crosshair.rad, crosshair.rad);
     }
     pop();
   }
