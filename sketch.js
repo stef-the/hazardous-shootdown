@@ -68,18 +68,16 @@ function setup() {
 
   // turret settings
   turret = {
-    speed: 0,     // movement speed    (pixels per frame)
     rot_speed: 4, // rotation speed    (degrees per frame)
     spread: 8,    // angle of spread   (degrees)
     fire_rate: 4, // fire rate         (shots per second)
-    hp: 16,       // health points     (damage required to destroy it)
+    hp: 32,       // health points     (damage required to destroy it)
   };
 
   // projectile settings
   projectile = {
     rad: 12,     // radius           (pixels)
     speed: 6,    // movement speed   (pixels per frame)
-    strength: 1, // strength         (damage dealt on collision)
     hp: 2,       // health points    (damage required to destroy it)
   };
 
@@ -89,7 +87,6 @@ function setup() {
       color: colors.red, // color
       rad: 16,           // radius           (pixels)
       speed: 2,          // movement speed   (pixels per frame)
-      strength: 2,       // strength         (damage dealt on collision)
       hp: 4,             // health points    (damage required to destroy it)
       abilities: [],     // abilities        (options: "evasive", "mothership", or "explosive")
       /**
@@ -122,7 +119,6 @@ function setup() {
       color: colors.yellow,
       rad: 12,
       speed: 6,
-      strength: 2,
       hp: 2,
       abilities: ["evasive"],
       spawn: { weight: 160, modifier: -0.6 },
@@ -131,7 +127,6 @@ function setup() {
       color: colors.orange,
       rad: 20,
       speed: 4,
-      strength: 4,
       hp: 12,
       abilities: [],
       spawn: { weight: 80, modifier: -0.2 },
@@ -140,7 +135,6 @@ function setup() {
       color: colors.green,
       rad: 24,
       speed: 1,
-      strength: 4,
       hp: 8,
       abilities: ["explosive"],
       spawn: { weight: 40, modifier: 0.2 },
@@ -149,7 +143,6 @@ function setup() {
       color: colors.purple,
       rad: 32,
       speed: 0.6,
-      strength: 8,
       hp: 32,
       abilities: ["mothership"],
       spawn: { weight: 4, modifier: 0.6 },
@@ -158,7 +151,6 @@ function setup() {
       color: colors.indigo,
       rad: 64,
       speed: 0.4,
-      strength: 16,
       hp: 48,
       abilities: ["mothership"],
       spawn: { weight: 1, modifier: 1.0 },
@@ -194,10 +186,9 @@ let projectiles = [];
 
 // turret class
 class Turret {
-  constructor(pos, speed, rot_speed, spread, fire_rate, hp) {
+  constructor(pos, rot_speed, spread, fire_rate, hp) {
     this.pos = { x: pos.x, y: pos.y }; // position
     this.vel = { x: 0, y: 0 };         // velocity
-    this.speed = speed;                // movement speed (pixels per frame)
     this.rot_speed = rot_speed;        // rotation speed (degrees per frame)
     this.spread = spread;              // spread (degrees)
     this.fire_rate = fire_rate;        // fire rate (shots per second)
@@ -347,7 +338,7 @@ class Turret {
         h.pos.y += sin(s) * o;
 
         // apply damage
-        this.hp -= h.strength / h.max_hp;
+        this.hp --;
         h.hp--;
 
         // show hurt indicator (red "flash" when damaged)
@@ -367,7 +358,7 @@ class Turret {
           y: this.pos.y + sin(this.rot) * (15 + projectile.rad / 2), // y position
         },
           slope = this.rot + random(-this.spread / 2, this.spread / 2); // slope
-        projectiles.push(new Projectile(pos, slope, projectile.rad, projectile.speed, projectile.strength, projectile.hp));
+        projectiles.push(new Projectile(pos, slope, projectile.rad, projectile.speed, projectile.hp));
         // reset projectile timer to fire rate
         this.projectile_timer = 60 / this.fire_rate;
       }
@@ -410,13 +401,12 @@ class Turret {
 }
 
 class Hazard {
-  constructor(pos, slope, vel, collision_id, color, rad, speed, strength, hp, abilities) {
+  constructor(pos, slope, vel, collision_id, color, rad, speed, hp, abilities) {
     this.pos = { x: pos.x, y: pos.y }; // position
     this.vel = vel;                    // velocity
     this.rad = rad;                    // radius (pixels)
     this.max_rad = rad;                // max radius
     this.speed = speed;                // movement speed (pixels per frame)
-    this.strength = strength;          // strength (damage dealt on collision)
     this.hp = hp;                      // health points
     this.max_hp = hp;                  // max health points
     this.color = color;                // color
@@ -538,9 +528,8 @@ class Hazard {
             },
             rad = this.max_rad * 2 / 3,
             hp = this.max_hp / 2,
-            strength = this.strength / 2,
             speed = this.speed * 2;
-          hazards.push(new Hazard(pos, angle, vel, this.collision_id, this.color, rad, speed, strength, hp, []));
+          hazards.push(new Hazard(pos, angle, vel, this.collision_id, this.color, rad, speed, hp, []));
         }
       }
 
@@ -619,13 +608,12 @@ class Hazard {
             y: this.pos.y + sin(angle) * (this.rad + 12),
           },
           rad = 12,
-          strength = 1,
           hp = 2,
           vel = {
             x: cos(angle) * 8,
             y: sin(angle) * 8,
           };
-        hazards.push(new Hazard(pos, angle, vel, this.collision_id, this.color, rad, 6, strength, hp, []));
+        hazards.push(new Hazard(pos, angle, vel, this.collision_id, this.color, rad, 6, hp, []));
         // reset hazard spawn timer
         this.hazard_timer = floor(2880 / this.max_rad);
       }
@@ -651,7 +639,7 @@ class Hazard {
 }
 
 class Projectile {
-  constructor(pos, slope, rad, speed, strength, hp) {
+  constructor(pos, slope, rad, speed, hp) {
     this.pos = { x: pos.x, y: pos.y }; // position
     this.vel = {
       x: cos(slope) * speed,   // x velocity
@@ -659,8 +647,7 @@ class Projectile {
     };
     this.max_rad = rad;        // maximum radius
     this.rad = rad;            // radius
-    this.speed = speed;        // movement speed 
-    this.strength = strength;  // strength (damage dealt on collision)
+    this.speed = speed;        // movement speed
     this.max_hp = hp;          // maximum health points
     this.hp = hp;              // health points
     this.slope = slope;        // slope (direction of travel)
@@ -767,7 +754,7 @@ class Projectile {
         this.opacity.hurt_indicator = 1;
 
         // apply damage
-        h.hp -= this.strength;
+        h.hp --;
         this.hp--;
       }
     });
