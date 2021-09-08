@@ -145,7 +145,7 @@ function setup() {
       speed: 0.6,
       hp: 32,
       abilities: ["mothership"],
-      spawn: { weight: 4, modifier: 0.6 },
+      spawn: { weight: 4000, modifier: 0.6 },
     },
     {
       color: colors.indigo,
@@ -391,7 +391,7 @@ class Turret {
         else r -= modified_weight[i];
       });
 
-      hazards.push(new Hazard(pos, s, vel, hazards.length, ...Object.values(hazard[type])));
+      hazards.push(new Hazard(pos, s, vel, ...Object.values(hazard[type])));
       // reset hazard timer based on current difficulty
       this.hazard_timer = 240 / sqrt(difficulty);
     }
@@ -401,7 +401,7 @@ class Turret {
 }
 
 class Hazard {
-  constructor(pos, slope, vel, collision_id, color, rad, speed, hp, abilities) {
+  constructor(pos, slope, vel, color, rad, speed, hp, abilities) {
     this.pos = { x: pos.x, y: pos.y }; // position
     this.vel = vel;                    // velocity
     this.rad = rad;                    // radius (pixels)
@@ -427,7 +427,6 @@ class Hazard {
       explosive: abilities.includes("explosive"),
       mothership: abilities.includes("mothership"),
     };
-    this.collision_id = collision_id;  // collision identifier (hazards with equal collision identifiers cannot collide with each other)
   }
   draw() {
     // set opacity
@@ -472,21 +471,19 @@ class Hazard {
   }
   animate(i) {
     // find nearest turret within range (to attack)
-    let min_distance, target;
+    let min_distance;
+    this.target = null;
     turrets.forEach((t, j) => {
       let distance = dist(t.pos.x, t.pos.y, this.pos.x, this.pos.y);
       if (distance <= 1000 && (distance < min_distance || !min_distance)) {
         min_distance = distance;
-        target = j;
+        this.target = j;
       }
     });
 
-    // if a turret within range exists, become "aggro" (aggravated)
-    this.aggro = typeof target !== "undefined";
-
-    if (this.aggro) {
+    if (this.target != null) {
       // attack nearest turret within range
-      this.slope = slope(this.pos.x, this.pos.y, turrets[target].pos.x, turrets[target].pos.y);
+      this.slope = slope(this.pos.x, this.pos.y, turrets[this.target].pos.x, turrets[this.target].pos.y);
       this.vel.x += (cos(this.slope) * this.speed - this.vel.x) / 32;
       this.vel.y += (sin(this.slope) * this.speed - this.vel.y) / 32;
 
@@ -515,7 +512,7 @@ class Hazard {
       this.opacity.hurt_indicator -= 0.05;
     } else {
       // explosive ability
-      if (this.abilities.explosive && this.aggro && this.opacity.master >= 1) {
+      if (this.abilities.explosive && this.target != null && this.opacity.master >= 1) {
         for (let i = 0; i < 3; i++) {
           let angle = random(360) + i * 120,
             pos = {
@@ -529,7 +526,7 @@ class Hazard {
             rad = this.max_rad * 2 / 3,
             hp = this.max_hp / 2,
             speed = this.speed * 2;
-          hazards.push(new Hazard(pos, angle, vel, hazards.length, this.color, rad, speed, hp, []));
+          hazards.push(new Hazard(pos, angle, vel, this.color, rad, speed, hp, []));
         }
       }
 
@@ -573,7 +570,7 @@ class Hazard {
   collide(i) {
     hazards.forEach((h, j) => {
       let d = dist(h.pos.x, h.pos.y, this.pos.x, this.pos.y) // distance between hazards
-      if (d <= h.rad + this.rad + 15 && this.active && h.active && i !== j && this.collision_id !== h.collision_id) {
+      if (d <= h.rad + this.rad + 15 && this.active && h.active && i !== j) {
         let o = h.rad + this.rad + 15 - d, // overlap between hazards
 
           s1 = slope(this.pos.x, this.pos.y, h.pos.x, h.pos.y), // slope of other hazard
@@ -600,12 +597,12 @@ class Hazard {
     });
   }
   spawnHazards(i) {
-    if (this.abilities.mothership && this.aggro) {
+    if (this.abilities.mothership && this.target != null) {
       if (this.hazard_timer == 0) {
-        let angle = random(360),
+        let angle = slope(this.pos.x, this.pos.y, turrets[this.target].pos.x, turrets[this.target].pos.y) - 90 + random(180),
           pos = {
-            x: this.pos.x + cos(angle) * (this.rad + 12),
-            y: this.pos.y + sin(angle) * (this.rad + 12),
+            x: this.pos.x + cos(angle) * (this.rad + 20),
+            y: this.pos.y + sin(angle) * (this.rad + 20),
           },
           rad = 12,
           hp = 2,
@@ -613,7 +610,7 @@ class Hazard {
             x: cos(angle) * 8,
             y: sin(angle) * 8,
           };
-        hazards.push(new Hazard(pos, angle, vel, this.collision_id, this.color, rad, 6, hp, []));
+        hazards.push(new Hazard(pos, angle, vel, this.color, rad, 6, hp, []));
         // reset hazard spawn timer
         this.hazard_timer = floor(2880 / this.max_rad);
       }
