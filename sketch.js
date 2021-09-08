@@ -42,7 +42,7 @@ let difficulty = 1.00;
  * indigo (small)   2 points
  */
 
-function game() {
+function sketch_game() {
   let score = 0;
 
   let colors;
