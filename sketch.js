@@ -23,7 +23,7 @@
  * decreased delay between hazard spawns
  * (press left shift to show difficulty, spawn timer, and hazard spawning probabilities)
  */
-let difficulty = 1.00;
+
 
 /**
  * SCORE
@@ -43,6 +43,8 @@ let difficulty = 1.00;
  */
 
 function sketch_game() {
+  let difficulty = 1.00;
+  
   let score = 0;
 
   let colors;
